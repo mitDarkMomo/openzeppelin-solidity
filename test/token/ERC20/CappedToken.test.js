@@ -1,17 +1,25 @@
+const { assertRevert } = require('../../helpers/assertRevert');
 const { ether } = require('../../helpers/ether');
-const { shouldBehaveLikeMintableToken } = require('./MintableToken.behaviour');
-const { shouldBehaveLikeCappedToken } = require('./CappedToken.behaviour');
+const { shouldBehaveLikeMintableToken } = require('./MintableToken.behavior');
+const { shouldBehaveLikeCappedToken } = require('./CappedToken.behavior');
 
 const CappedToken = artifacts.require('CappedToken');
 
-contract('Capped', function ([owner, anotherAccount]) {
-  const _cap = ether(1000);
+contract('Capped', function ([_, owner, ...otherAccounts]) {
+  const cap = ether(1000);
 
-  beforeEach(async function () {
-    this.token = await CappedToken.new(_cap, { from: owner });
+  it('requires a non-zero cap', async function () {
+    await assertRevert(
+      CappedToken.new(0, { from: owner })
+    );
   });
 
-  shouldBehaveLikeCappedToken([owner, anotherAccount, owner, _cap]);
+  context('once deployed', async function () {
+    beforeEach(async function () {
+      this.token = await CappedToken.new(cap, { from: owner });
+    });
 
-  shouldBehaveLikeMintableToken([owner, anotherAccount, owner]);
+    shouldBehaveLikeCappedToken(owner, otherAccounts, cap);
+    shouldBehaveLikeMintableToken(owner, owner, otherAccounts);
+  });
 });

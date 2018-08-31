@@ -6,18 +6,11 @@ const WhitelistMock = artifacts.require('WhitelistMock');
 require('chai')
   .should();
 
-contract('Whitelist', function (accounts) {
-  const [
-    owner,
-    whitelistedAddress1,
-    whitelistedAddress2,
-    anyone,
-  ] = accounts;
-
+contract('Whitelist', function ([_, owner, whitelistedAddress1, whitelistedAddress2, anyone]) {
   const whitelistedAddresses = [whitelistedAddress1, whitelistedAddress2];
 
   beforeEach(async function () {
-    this.mock = await WhitelistMock.new();
+    this.mock = await WhitelistMock.new({ from: owner });
     this.role = await this.mock.ROLE_WHITELISTED();
   });
 
@@ -28,8 +21,7 @@ contract('Whitelist', function (accounts) {
         'RoleAdded',
         { role: this.role },
       );
-      const isWhitelisted = await this.mock.whitelist(whitelistedAddress1);
-      isWhitelisted.should.be.equal(true);
+      (await this.mock.whitelist(whitelistedAddress1)).should.equal(true);
     });
 
     it('should add addresses to the whitelist', async function () {
@@ -39,8 +31,7 @@ contract('Whitelist', function (accounts) {
         { role: this.role },
       );
       for (const addr of whitelistedAddresses) {
-        const isWhitelisted = await this.mock.whitelist(addr);
-        isWhitelisted.should.be.equal(true);
+        (await this.mock.whitelist(addr)).should.equal(true);
       }
     });
 
@@ -50,8 +41,7 @@ contract('Whitelist', function (accounts) {
         'RoleRemoved',
         { role: this.role },
       );
-      const isWhitelisted = await this.mock.whitelist(whitelistedAddress1);
-      isWhitelisted.should.be.equal(false);
+      (await this.mock.whitelist(whitelistedAddress1)).should.equal(false);
     });
 
     it('should remove addresses from the the whitelist', async function () {
@@ -61,8 +51,7 @@ contract('Whitelist', function (accounts) {
         { role: this.role },
       );
       for (const addr of whitelistedAddresses) {
-        const isWhitelisted = await this.mock.whitelist(addr);
-        isWhitelisted.should.be.equal(false);
+        (await this.mock.whitelist(addr)).should.equal(false);
       }
     });
 

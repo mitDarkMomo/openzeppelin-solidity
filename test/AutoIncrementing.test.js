@@ -1,5 +1,3 @@
-const { hashMessage } = require('./helpers/sign');
-
 const AutoIncrementing = artifacts.require('AutoIncrementingImpl');
 
 require('chai')
@@ -7,8 +5,8 @@ require('chai')
   .should();
 
 const EXPECTED = [1, 2, 3, 4];
-const KEY1 = hashMessage('key1');
-const KEY2 = hashMessage('key2');
+const KEY1 = web3.sha3('key1');
+const KEY2 = web3.sha3('key2');
 
 contract('AutoIncrementing', function ([_, owner]) {
   beforeEach(async function () {
@@ -20,7 +18,7 @@ contract('AutoIncrementing', function ([_, owner]) {
       for (const expectedId of EXPECTED) {
         await this.mock.doThing(KEY1, { from: owner });
         const actualId = await this.mock.theId();
-        actualId.should.be.bignumber.eq(expectedId);
+        actualId.should.be.bignumber.equal(expectedId);
       }
     });
   });
@@ -30,11 +28,11 @@ contract('AutoIncrementing', function ([_, owner]) {
       for (const expectedId of EXPECTED) {
         await this.mock.doThing(KEY1, { from: owner });
         let actualId = await this.mock.theId();
-        actualId.should.be.bignumber.eq(expectedId);
+        actualId.should.be.bignumber.equal(expectedId);
 
         await this.mock.doThing(KEY2, { from: owner });
         actualId = await this.mock.theId();
-        actualId.should.be.bignumber.eq(expectedId);
+        actualId.should.be.bignumber.equal(expectedId);
       }
     });
   });

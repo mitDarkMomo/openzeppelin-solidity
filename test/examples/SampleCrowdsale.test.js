@@ -9,14 +9,14 @@ const { ethGetBalance } = require('../helpers/web3');
 
 const BigNumber = web3.BigNumber;
 
-require('chai')
+const should = require('chai')
   .use(require('chai-bignumber')(BigNumber))
   .should();
 
 const SampleCrowdsale = artifacts.require('SampleCrowdsale');
 const SampleCrowdsaleToken = artifacts.require('SampleCrowdsaleToken');
 
-contract('SampleCrowdsale', function ([owner, wallet, investor]) {
+contract('SampleCrowdsale', function ([_, owner, wallet, investor]) {
   const RATE = new BigNumber(10);
   const GOAL = ether(10);
   const CAP = ether(20);
@@ -33,28 +33,22 @@ contract('SampleCrowdsale', function ([owner, wallet, investor]) {
 
     this.token = await SampleCrowdsaleToken.new({ from: owner });
     this.crowdsale = await SampleCrowdsale.new(
-      this.openingTime, this.closingTime, RATE, wallet, CAP, this.token.address, GOAL
+      this.openingTime, this.closingTime, RATE, wallet, CAP, this.token.address, GOAL,
+      { from: owner }
     );
-    await this.token.transferOwnership(this.crowdsale.address);
+    await this.token.transferOwnership(this.crowdsale.address, { from: owner });
   });
 
   it('should create crowdsale with correct parameters', async function () {
-    this.crowdsale.should.exist;
-    this.token.should.exist;
+    should.exist(this.crowdsale);
+    should.exist(this.token);
 
-    const openingTime = await this.crowdsale.openingTime();
-    const closingTime = await this.crowdsale.closingTime();
-    const rate = await this.crowdsale.rate();
-    const walletAddress = await this.crowdsale.wallet();
-    const goal = await this.crowdsale.goal();
-    const cap = await this.crowdsale.cap();
-
-    openingTime.should.be.bignumber.equal(this.openingTime);
-    closingTime.should.be.bignumber.equal(this.closingTime);
-    rate.should.be.bignumber.equal(RATE);
-    walletAddress.should.be.equal(wallet);
-    goal.should.be.bignumber.equal(GOAL);
-    cap.should.be.bignumber.equal(CAP);
+    (await this.crowdsale.openingTime()).should.be.bignumber.equal(this.openingTime);
+    (await this.crowdsale.closingTime()).should.be.bignumber.equal(this.closingTime);
+    (await this.crowdsale.rate()).should.be.bignumber.equal(RATE);
+    (await this.crowdsale.wallet()).should.be.equal(wallet);
+    (await this.crowdsale.goal()).should.be.bignumber.equal(GOAL);
+    (await this.crowdsale.cap()).should.be.bignumber.equal(CAP);
   });
 
   it('should not accept payments before start', async function () {

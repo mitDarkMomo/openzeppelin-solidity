@@ -6,7 +6,7 @@ require('chai')
 
 const DetailedERC20Mock = artifacts.require('DetailedERC20Mock');
 
-contract('DetailedERC20', accounts => {
+contract('DetailedERC20', function () {
   let detailedERC20 = null;
 
   const _name = 'My Detailed ERC20';
@@ -18,17 +18,14 @@ contract('DetailedERC20', accounts => {
   });
 
   it('has a name', async function () {
-    const name = await detailedERC20.name();
-    name.should.be.equal(_name);
+    (await detailedERC20.name()).should.be.equal(_name);
   });
 
   it('has a symbol', async function () {
-    const symbol = await detailedERC20.symbol();
-    symbol.should.be.equal(_symbol);
+    (await detailedERC20.symbol()).should.be.equal(_symbol);
   });
 
   it('has an amount of decimals', async function () {
-    const decimals = await detailedERC20.decimals();
-    decimals.should.be.bignumber.equal(_decimals);
+    (await detailedERC20.decimals()).should.be.bignumber.equal(_decimals);
   });
 });

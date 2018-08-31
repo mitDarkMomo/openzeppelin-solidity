@@ -68,7 +68,7 @@ contract ERC721Token is SupportsInterfaceWithLookup, ERC721BasicToken, ERC721 {
    * @param _tokenId uint256 ID of the token to query
    */
   function tokenURI(uint256 _tokenId) public view returns (string) {
-    require(exists(_tokenId));
+    require(_exists(_tokenId));
     return tokenURIs[_tokenId];
   }
 
@@ -116,7 +116,7 @@ contract ERC721Token is SupportsInterfaceWithLookup, ERC721BasicToken, ERC721 {
    * @param _uri string URI to assign
    */
   function _setTokenURI(uint256 _tokenId, string _uri) internal {
-    require(exists(_tokenId));
+    require(_exists(_tokenId));
     tokenURIs[_tokenId] = _uri;
   }
 
@@ -147,8 +147,8 @@ contract ERC721Token is SupportsInterfaceWithLookup, ERC721BasicToken, ERC721 {
     uint256 lastToken = ownedTokens[_from][lastTokenIndex];
 
     ownedTokens[_from][tokenIndex] = lastToken;
+    // This also deletes the contents at the last position of the array
     ownedTokens[_from].length--;
-    // ^ This also deletes the contents at the last position of the array
 
     // Note that this will handle single-element arrays. In that case, both tokenIndex and lastTokenIndex are going to
     // be zero. Then we can make sure that we will remove _tokenId from the ownedTokens list since we are first swapping
