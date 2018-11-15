@@ -3,7 +3,6 @@ pragma solidity ^0.4.24;
 import "../../math/SafeMath.sol";
 import "../Crowdsale.sol";
 
-
 /**
  * @title CappedCrowdsale
  * @dev Crowdsale with a limit for total contributions.
@@ -17,7 +16,7 @@ contract CappedCrowdsale is Crowdsale {
    * @dev Constructor, takes maximum amount of wei accepted in the crowdsale.
    * @param cap Max amount of wei to be contributed
    */
-  constructor(uint256 cap) public {
+  constructor(uint256 cap) internal {
     require(cap > 0);
     _cap = cap;
   }
@@ -47,6 +46,7 @@ contract CappedCrowdsale is Crowdsale {
     uint256 weiAmount
   )
     internal
+    view
   {
     super._preValidatePurchase(beneficiary, weiAmount);
     require(weiRaised().add(weiAmount) <= _cap);

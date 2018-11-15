@@ -1,9 +1,7 @@
 const { ether } = require('../helpers/ether');
 const { advanceBlock } = require('../helpers/advanceToBlock');
-const { increaseTimeTo, duration } = require('../helpers/increaseTime');
-const { latestTime } = require('../helpers/latestTime');
-const { expectThrow } = require('../helpers/expectThrow');
-const { EVMRevert } = require('../helpers/EVMRevert');
+const shouldFail = require('../helpers/shouldFail');
+const time = require('../helpers/time');
 const { ethGetBalance } = require('../helpers/web3');
 
 const BigNumber = web3.BigNumber;
@@ -12,7 +10,7 @@ require('chai')
   .use(require('chai-bignumber')(BigNumber))
   .should();
 
-const RefundableCrowdsale = artifacts.require('RefundableCrowdsaleImpl');
+const RefundableCrowdsaleImpl = artifacts.require('RefundableCrowdsaleImpl');
 const SimpleToken = artifacts.require('SimpleToken');
 
 contract('RefundableCrowdsale', function ([_, wallet, investor, purchaser, anyone]) {
@@ -27,26 +25,23 @@ contract('RefundableCrowdsale', function ([_, wallet, investor, purchaser, anyon
   });
 
   beforeEach(async function () {
-    this.openingTime = (await latestTime()) + duration.weeks(1);
-    this.closingTime = this.openingTime + duration.weeks(1);
-    this.afterClosingTime = this.closingTime + duration.seconds(1);
+    this.openingTime = (await time.latest()) + time.duration.weeks(1);
+    this.closingTime = this.openingTime + time.duration.weeks(1);
+    this.afterClosingTime = this.closingTime + time.duration.seconds(1);
     this.preWalletBalance = await ethGetBalance(wallet);
 
     this.token = await SimpleToken.new();
   });
 
   it('rejects a goal of zero', async function () {
-    await expectThrow(
-      RefundableCrowdsale.new(
-        this.openingTime, this.closingTime, rate, wallet, this.token.address, 0,
-      ),
-      EVMRevert,
+    await shouldFail.reverting(
+      RefundableCrowdsaleImpl.new(this.openingTime, this.closingTime, rate, wallet, this.token.address, 0)
     );
   });
 
   context('with crowdsale', function () {
     beforeEach(async function () {
-      this.crowdsale = await RefundableCrowdsale.new(
+      this.crowdsale = await RefundableCrowdsaleImpl.new(
         this.openingTime, this.closingTime, rate, wallet, this.token.address, goal
       );
 
@@ -55,17 +50,17 @@ contract('RefundableCrowdsale', function ([_, wallet, investor, purchaser, anyon
 
     context('before opening time', function () {
       it('denies refunds', async function () {
-        await expectThrow(this.crowdsale.claimRefund(investor), EVMRevert);
+        await shouldFail.reverting(this.crowdsale.claimRefund(investor));
       });
     });
 
     context('after opening time', function () {
       beforeEach(async function () {
-        await increaseTimeTo(this.openingTime);
+        await time.increaseTo(this.openingTime);
       });
 
       it('denies refunds', async function () {
-        await expectThrow(this.crowdsale.claimRefund(investor), EVMRevert);
+        await shouldFail.reverting(this.crowdsale.claimRefund(investor));
       });
 
       context('with unreached goal', function () {
@@ -75,7 +70,7 @@ contract('RefundableCrowdsale', function ([_, wallet, investor, purchaser, anyon
 
         context('after closing time and finalization', function () {
           beforeEach(async function () {
-            await increaseTimeTo(this.afterClosingTime);
+            await time.increaseTo(this.afterClosingTime);
             await this.crowdsale.finalize({ from: anyone });
           });
 
@@ -95,12 +90,12 @@ contract('RefundableCrowdsale', function ([_, wallet, investor, purchaser, anyon
 
         context('after closing time and finalization', function () {
           beforeEach(async function () {
-            await increaseTimeTo(this.afterClosingTime);
+            await time.increaseTo(this.afterClosingTime);
             await this.crowdsale.finalize({ from: anyone });
           });
 
           it('denies refunds', async function () {
-            await expectThrow(this.crowdsale.claimRefund(investor), EVMRevert);
+            await shouldFail.reverting(this.crowdsale.claimRefund(investor));
           });
 
           it('forwards funds to wallet', async function () {

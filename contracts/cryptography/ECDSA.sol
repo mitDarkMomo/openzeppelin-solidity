@@ -1,6 +1,5 @@
 pragma solidity ^0.4.24;
 
-
 /**
  * @title Elliptic curve signature operations
  * @dev Based on https://gist.github.com/axic/5b33912c6f61ae6fd96d6c4a47afde6d
@@ -34,9 +33,9 @@ library ECDSA {
     // currently is to use assembly.
     // solium-disable-next-line security/no-inline-assembly
     assembly {
-      r := mload(add(signature, 32))
-      s := mload(add(signature, 64))
-      v := byte(0, mload(add(signature, 96)))
+      r := mload(add(signature, 0x20))
+      s := mload(add(signature, 0x40))
+      v := byte(0, mload(add(signature, 0x60)))
     }
 
     // Version of signature should be 27 or 28, but 0 and 1 are also possible versions

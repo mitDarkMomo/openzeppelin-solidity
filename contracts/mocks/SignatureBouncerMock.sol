@@ -3,7 +3,6 @@ pragma solidity ^0.4.24;
 import "../drafts/SignatureBouncer.sol";
 import "./SignerRoleMock.sol";
 
-
 contract SignatureBouncerMock is SignatureBouncer, SignerRoleMock {
   function checkValidSignature(address account, bytes signature)
     public
@@ -63,5 +62,12 @@ contract SignatureBouncerMock is SignatureBouncer, SignerRoleMock {
     pure
   {
 
+  }
+
+  function tooShortMsgData()
+    public
+    onlyValidSignatureAndData("")
+    view
+  {
   }
 }

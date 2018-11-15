@@ -3,7 +3,6 @@ pragma solidity ^0.4.24;
 import "../validation/TimedCrowdsale.sol";
 import "../../math/SafeMath.sol";
 
-
 /**
  * @title IncreasingPriceCrowdsale
  * @dev Extension of Crowdsale contract that increases the price of tokens linearly in time.
@@ -21,11 +20,19 @@ contract IncreasingPriceCrowdsale is TimedCrowdsale {
    * @param initialRate Number of tokens a buyer gets per wei at the start of the crowdsale
    * @param finalRate Number of tokens a buyer gets per wei at the end of the crowdsale
    */
-  constructor(uint256 initialRate, uint256 finalRate) public {
+  constructor(uint256 initialRate, uint256 finalRate) internal {
     require(finalRate > 0);
-    require(initialRate >= finalRate);
+    require(initialRate > finalRate);
     _initialRate = initialRate;
     _finalRate = finalRate;
+  }
+
+  /**
+   * The base rate function is overridden to revert, since this crowdsale doens't use it, and
+   * all calls to it are a mistake.
+   */
+  function rate() public view returns(uint256) {
+    revert();
   }
 
   /**
@@ -48,6 +55,10 @@ contract IncreasingPriceCrowdsale is TimedCrowdsale {
    * @return The number of tokens a buyer gets per wei at a given time
    */
   function getCurrentRate() public view returns (uint256) {
+    if (!isOpen()) {
+      return 0;
+    }
+
     // solium-disable-next-line security/no-block-members
     uint256 elapsedTime = block.timestamp.sub(openingTime());
     uint256 timeRange = closingTime().sub(openingTime());

@@ -1,6 +1,5 @@
 pragma solidity ^0.4.24;
 
-
 /**
  * @title Roles
  * @dev Library for managing addresses assigned to a Role.
@@ -15,6 +14,8 @@ library Roles {
    */
   function add(Role storage role, address account) internal {
     require(account != address(0));
+    require(!has(role, account));
+
     role.bearer[account] = true;
   }
 
@@ -23,6 +24,8 @@ library Roles {
    */
   function remove(Role storage role, address account) internal {
     require(account != address(0));
+    require(has(role, account));
+
     role.bearer[account] = false;
   }
 
