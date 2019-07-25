@@ -1,14 +1,10 @@
-const expectEvent = require('../helpers/expectEvent');
-const time = require('../helpers/time');
-const shouldFail = require('../helpers/shouldFail');
-
-const { BigNumber } = require('../helpers/setup');
+const { BN, expectEvent, expectRevert, time } = require('openzeppelin-test-helpers');
 
 const FinalizableCrowdsaleImpl = artifacts.require('FinalizableCrowdsaleImpl');
 const ERC20 = artifacts.require('ERC20');
 
-contract('FinalizableCrowdsale', function ([_, wallet, anyone]) {
-  const rate = new BigNumber(1000);
+contract('FinalizableCrowdsale', function ([_, wallet, other]) {
+  const rate = new BN('1000');
 
   before(async function () {
     // Advance to the next block to correctly read time in the solidity "now" function interpreted by ganache
@@ -16,9 +12,9 @@ contract('FinalizableCrowdsale', function ([_, wallet, anyone]) {
   });
 
   beforeEach(async function () {
-    this.openingTime = (await time.latest()) + time.duration.weeks(1);
-    this.closingTime = this.openingTime + time.duration.weeks(1);
-    this.afterClosingTime = this.closingTime + time.duration.seconds(1);
+    this.openingTime = (await time.latest()).add(time.duration.weeks(1));
+    this.closingTime = this.openingTime.add(time.duration.weeks(1));
+    this.afterClosingTime = this.closingTime.add(time.duration.seconds(1));
 
     this.token = await ERC20.new();
     this.crowdsale = await FinalizableCrowdsaleImpl.new(
@@ -27,23 +23,27 @@ contract('FinalizableCrowdsale', function ([_, wallet, anyone]) {
   });
 
   it('cannot be finalized before ending', async function () {
-    await shouldFail.reverting(this.crowdsale.finalize({ from: anyone }));
+    await expectRevert(this.crowdsale.finalize({ from: other }),
+      'FinalizableCrowdsale: not closed'
+    );
   });
 
   it('can be finalized by anyone after ending', async function () {
     await time.increaseTo(this.afterClosingTime);
-    await this.crowdsale.finalize({ from: anyone });
+    await this.crowdsale.finalize({ from: other });
   });
 
   it('cannot be finalized twice', async function () {
     await time.increaseTo(this.afterClosingTime);
-    await this.crowdsale.finalize({ from: anyone });
-    await shouldFail.reverting(this.crowdsale.finalize({ from: anyone }));
+    await this.crowdsale.finalize({ from: other });
+    await expectRevert(this.crowdsale.finalize({ from: other }),
+      'FinalizableCrowdsale: already finalized'
+    );
   });
 
   it('logs finalized', async function () {
     await time.increaseTo(this.afterClosingTime);
-    const { logs } = await this.crowdsale.finalize({ from: anyone });
+    const { logs } = await this.crowdsale.finalize({ from: other });
     expectEvent.inLogs(logs, 'CrowdsaleFinalized');
   });
 });

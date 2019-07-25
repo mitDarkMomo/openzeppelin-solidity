@@ -1,16 +1,15 @@
+const { BN, ether, expectRevert } = require('openzeppelin-test-helpers');
 const { shouldBehaveLikeMintedCrowdsale } = require('./MintedCrowdsale.behavior');
-const { ether } = require('../helpers/ether');
-const shouldFail = require('../helpers/shouldFail');
 
-const { BigNumber } = require('../helpers/setup');
+const { expect } = require('chai');
 
 const MintedCrowdsaleImpl = artifacts.require('MintedCrowdsaleImpl');
 const ERC20Mintable = artifacts.require('ERC20Mintable');
 const ERC20 = artifacts.require('ERC20');
 
 contract('MintedCrowdsale', function ([_, deployer, investor, wallet, purchaser]) {
-  const rate = new BigNumber(1000);
-  const value = ether(5);
+  const rate = new BN('1000');
+  const value = ether('5');
 
   describe('using ERC20Mintable', function () {
     beforeEach(async function () {
@@ -22,7 +21,7 @@ contract('MintedCrowdsale', function ([_, deployer, investor, wallet, purchaser]
     });
 
     it('crowdsale should be minter', async function () {
-      (await this.token.isMinter(this.crowdsale.address)).should.equal(true);
+      expect(await this.token.isMinter(this.crowdsale.address)).to.equal(true);
     });
 
     shouldBehaveLikeMintedCrowdsale([_, investor, wallet, purchaser], rate, value);
@@ -35,11 +34,11 @@ contract('MintedCrowdsale', function ([_, deployer, investor, wallet, purchaser]
     });
 
     it('rejects bare payments', async function () {
-      await shouldFail.reverting(this.crowdsale.send(value));
+      await expectRevert.unspecified(this.crowdsale.send(value));
     });
 
     it('rejects token purchases', async function () {
-      await shouldFail.reverting(this.crowdsale.buyTokens(investor, { value: value, from: purchaser }));
+      await expectRevert.unspecified(this.crowdsale.buyTokens(investor, { value: value, from: purchaser }));
     });
   });
 });

@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.0;
 
 import "../access/roles/SignerRole.sol";
 import "../cryptography/ECDSA.sol";
@@ -29,7 +29,7 @@ import "../cryptography/ECDSA.sol";
  * @notice A method that uses the `onlyValidSignatureAndData` modifier must make
  * the _signature parameter the "last" parameter. You cannot sign a message that
  * has its own signature in it so the last 128 bytes of msg.data (which
- * represents the length of the _signature data and the _signaature data itself)
+ * represents the length of the _signature data and the _signature data itself)
  * is ignored when validating. Also non fixed sized parameters make constructing
  * the data in the signature much more complex.
  * See https://ethereum.stackexchange.com/a/50616 for more details.
@@ -43,62 +43,66 @@ contract SignatureBouncer is SignerRole {
     // Signature size is 65 bytes (tightly packed v + r + s), but gets padded to 96 bytes
     uint256 private constant _SIGNATURE_SIZE = 96;
 
-    constructor () internal {}
+    constructor () internal {
+        // solhint-disable-previous-line no-empty-blocks
+    }
 
     /**
-     * @dev requires that a valid signature of a signer was provided
+     * @dev Requires that a valid signature of a signer was provided.
      */
-    modifier onlyValidSignature(bytes signature) {
-        require(_isValidSignature(msg.sender, signature));
+    modifier onlyValidSignature(bytes memory signature) {
+        require(_isValidSignature(msg.sender, signature), "SignatureBouncer: invalid signature for caller");
         _;
     }
 
     /**
-     * @dev requires that a valid signature with a specifed method of a signer was provided
+     * @dev Requires that a valid signature with a specified method of a signer was provided.
      */
-    modifier onlyValidSignatureAndMethod(bytes signature) {
-        require(_isValidSignatureAndMethod(msg.sender, signature));
+    modifier onlyValidSignatureAndMethod(bytes memory signature) {
+        // solhint-disable-next-line max-line-length
+        require(_isValidSignatureAndMethod(msg.sender, signature), "SignatureBouncer: invalid signature for caller and method");
         _;
     }
 
     /**
-     * @dev requires that a valid signature with a specifed method and params of a signer was provided
+     * @dev Requires that a valid signature with a specified method and params of a signer was provided.
      */
-    modifier onlyValidSignatureAndData(bytes signature) {
-        require(_isValidSignatureAndData(msg.sender, signature));
+    modifier onlyValidSignatureAndData(bytes memory signature) {
+        // solhint-disable-next-line max-line-length
+        require(_isValidSignatureAndData(msg.sender, signature), "SignatureBouncer: invalid signature for caller and data");
         _;
     }
 
     /**
-     * @dev is the signature of `this + sender` from a signer?
+     * @dev is the signature of `this + account` from a signer?
      * @return bool
      */
-    function _isValidSignature(address account, bytes signature) internal view returns (bool) {
+    function _isValidSignature(address account, bytes memory signature) internal view returns (bool) {
         return _isValidDataHash(keccak256(abi.encodePacked(address(this), account)), signature);
     }
 
     /**
-     * @dev is the signature of `this + sender + methodId` from a signer?
+     * @dev is the signature of `this + account + methodId` from a signer?
      * @return bool
      */
-    function _isValidSignatureAndMethod(address account, bytes signature) internal view returns (bool) {
+    function _isValidSignatureAndMethod(address account, bytes memory signature) internal view returns (bool) {
         bytes memory data = new bytes(_METHOD_ID_SIZE);
-        for (uint i = 0; i < data.length; i++) {
+        for (uint256 i = 0; i < data.length; i++) {
             data[i] = msg.data[i];
         }
         return _isValidDataHash(keccak256(abi.encodePacked(address(this), account, data)), signature);
     }
 
     /**
-        * @dev is the signature of `this + sender + methodId + params(s)` from a signer?
-        * @notice the signature parameter of the method being validated must be the "last" parameter
-        * @return bool
-        */
-    function _isValidSignatureAndData(address account, bytes signature) internal view returns (bool) {
-        require(msg.data.length > _SIGNATURE_SIZE);
+     * @dev is the signature of `this + account + methodId + params(s)` from a signer?
+     * @notice the signature parameter of the method being validated must be the "last" parameter
+     * @return bool
+     */
+    function _isValidSignatureAndData(address account, bytes memory signature) internal view returns (bool) {
+        require(msg.data.length > _SIGNATURE_SIZE, "SignatureBouncer: data is too short");
 
         bytes memory data = new bytes(msg.data.length - _SIGNATURE_SIZE);
-        for (uint i = 0; i < data.length; i++) {
+        for (uint256 i = 0; i < data.length; i++) {
             data[i] = msg.data[i];
         }
 
@@ -106,11 +110,11 @@ contract SignatureBouncer is SignerRole {
     }
 
     /**
-     * @dev internal function to convert a hash to an eth signed message
-     * and then recover the signature and check it against the signer role
+     * @dev Internal function to convert a hash to an eth signed message
+     * and then recover the signature and check it against the signer role.
      * @return bool
      */
-    function _isValidDataHash(bytes32 hash, bytes signature) internal view returns (bool) {
+    function _isValidDataHash(bytes32 hash, bytes memory signature) internal view returns (bool) {
         address signer = hash.toEthSignedMessageHash().recover(signature);
 
         return signer != address(0) && isSigner(signer);

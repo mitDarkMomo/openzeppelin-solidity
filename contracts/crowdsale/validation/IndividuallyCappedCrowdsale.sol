@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.0;
 
 import "../../math/SafeMath.sol";
 import "../Crowdsale.sol";
@@ -13,8 +13,6 @@ contract IndividuallyCappedCrowdsale is Crowdsale, CapperRole {
 
     mapping(address => uint256) private _contributions;
     mapping(address => uint256) private _caps;
-
-    constructor () internal {}
 
     /**
      * @dev Sets a specific beneficiary's maximum contribution.
@@ -50,11 +48,12 @@ contract IndividuallyCappedCrowdsale is Crowdsale, CapperRole {
      */
     function _preValidatePurchase(address beneficiary, uint256 weiAmount) internal view {
         super._preValidatePurchase(beneficiary, weiAmount);
-        require(_contributions[beneficiary].add(weiAmount) <= _caps[beneficiary]);
+        // solhint-disable-next-line max-line-length
+        require(_contributions[beneficiary].add(weiAmount) <= _caps[beneficiary], "IndividuallyCappedCrowdsale: beneficiary's cap exceeded");
     }
 
     /**
-     * @dev Extend parent behavior to update beneficiary contributions
+     * @dev Extend parent behavior to update beneficiary contributions.
      * @param beneficiary Token purchaser
      * @param weiAmount Amount of wei contributed
      */

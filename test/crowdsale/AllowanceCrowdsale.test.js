@@ -1,19 +1,16 @@
-const expectEvent = require('../helpers/expectEvent');
-const { ether } = require('../helpers/ether');
-const shouldFail = require('../helpers/shouldFail');
-const { balanceDifference } = require('../helpers/balanceDifference');
-const { ZERO_ADDRESS } = require('../helpers/constants');
+const { balance, BN, constants, ether, expectEvent, expectRevert } = require('openzeppelin-test-helpers');
+const { ZERO_ADDRESS } = constants;
 
-const { BigNumber } = require('../helpers/setup');
+const { expect } = require('chai');
 
 const AllowanceCrowdsaleImpl = artifacts.require('AllowanceCrowdsaleImpl');
 const SimpleToken = artifacts.require('SimpleToken');
 
 contract('AllowanceCrowdsale', function ([_, investor, wallet, purchaser, tokenWallet]) {
-  const rate = new BigNumber(1);
-  const value = ether(0.42);
+  const rate = new BN('1');
+  const value = ether('0.42');
   const expectedTokenAmount = rate.mul(value);
-  const tokenAllowance = new BigNumber('1e22');
+  const tokenAllowance = new BN('10').pow(new BN('22'));
 
   beforeEach(async function () {
     this.token = await SimpleToken.new({ from: tokenWallet });
@@ -23,7 +20,7 @@ contract('AllowanceCrowdsale', function ([_, investor, wallet, purchaser, tokenW
 
   describe('accepting payments', function () {
     it('should have token wallet', async function () {
-      (await this.crowdsale.tokenWallet()).should.be.equal(tokenWallet);
+      expect(await this.crowdsale.tokenWallet()).to.equal(tokenWallet);
     });
 
     it('should accept sends', async function () {
@@ -48,39 +45,41 @@ contract('AllowanceCrowdsale', function ([_, investor, wallet, purchaser, tokenW
 
     it('should assign tokens to sender', async function () {
       await this.crowdsale.sendTransaction({ value: value, from: investor });
-      (await this.token.balanceOf(investor)).should.be.bignumber.equal(expectedTokenAmount);
+      expect(await this.token.balanceOf(investor)).to.be.bignumber.equal(expectedTokenAmount);
     });
 
     it('should forward funds to wallet', async function () {
-      (await balanceDifference(wallet, () =>
-        this.crowdsale.sendTransaction({ value, from: investor }))
-      ).should.be.bignumber.equal(value);
+      const balanceTracker = await balance.tracker(wallet);
+      await this.crowdsale.sendTransaction({ value, from: investor });
+      expect(await balanceTracker.delta()).to.be.bignumber.equal(value);
     });
   });
 
   describe('check remaining allowance', function () {
-    it('should report correct allowace left', async function () {
-      const remainingAllowance = tokenAllowance - expectedTokenAmount;
+    it('should report correct allowance left', async function () {
+      const remainingAllowance = tokenAllowance.sub(expectedTokenAmount);
       await this.crowdsale.buyTokens(investor, { value: value, from: purchaser });
-      (await this.crowdsale.remainingTokens()).should.be.bignumber.equal(remainingAllowance);
+      expect(await this.crowdsale.remainingTokens()).to.be.bignumber.equal(remainingAllowance);
     });
 
     context('when the allowance is larger than the token amount', function () {
       beforeEach(async function () {
         const amount = await this.token.balanceOf(tokenWallet);
-        await this.token.approve(this.crowdsale.address, amount.plus(1), { from: tokenWallet });
+        await this.token.approve(this.crowdsale.address, amount.addn(1), { from: tokenWallet });
       });
 
       it('should report the amount instead of the allowance', async function () {
-        (await this.crowdsale.remainingTokens()).should.be.bignumber.equal(await this.token.balanceOf(tokenWallet));
+        expect(await this.crowdsale.remainingTokens()).to.be.bignumber.equal(await this.token.balanceOf(tokenWallet));
       });
     });
   });
 
-  describe('when token wallet is different from token address', function () {
+  describe('when token wallet is the zero address', function () {
     it('creation reverts', async function () {
       this.token = await SimpleToken.new({ from: tokenWallet });
-      await shouldFail.reverting(AllowanceCrowdsaleImpl.new(rate, wallet, this.token.address, ZERO_ADDRESS));
+      await expectRevert(AllowanceCrowdsaleImpl.new(rate, wallet, this.token.address, ZERO_ADDRESS),
+        'AllowanceCrowdsale: token wallet is the zero address'
+      );
     });
   });
 });

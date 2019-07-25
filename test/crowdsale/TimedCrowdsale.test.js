@@ -1,16 +1,14 @@
-const { ether } = require('../helpers/ether');
-const shouldFail = require('../helpers/shouldFail');
-const time = require('../helpers/time');
+const { BN, ether, expectEvent, expectRevert, time } = require('openzeppelin-test-helpers');
 
-const { BigNumber } = require('../helpers/setup');
+const { expect } = require('chai');
 
 const TimedCrowdsaleImpl = artifacts.require('TimedCrowdsaleImpl');
 const SimpleToken = artifacts.require('SimpleToken');
 
 contract('TimedCrowdsale', function ([_, investor, wallet, purchaser]) {
-  const rate = new BigNumber(1);
-  const value = ether(42);
-  const tokenSupply = new BigNumber('1e22');
+  const rate = new BN(1);
+  const value = ether('42');
+  const tokenSupply = new BN('10').pow(new BN('22'));
 
   before(async function () {
     // Advance to the next block to correctly read time in the solidity "now" function interpreted by ganache
@@ -18,28 +16,28 @@ contract('TimedCrowdsale', function ([_, investor, wallet, purchaser]) {
   });
 
   beforeEach(async function () {
-    this.openingTime = (await time.latest()) + time.duration.weeks(1);
-    this.closingTime = this.openingTime + time.duration.weeks(1);
-    this.afterClosingTime = this.closingTime + time.duration.seconds(1);
+    this.openingTime = (await time.latest()).add(time.duration.weeks(1));
+    this.closingTime = this.openingTime.add(time.duration.weeks(1));
+    this.afterClosingTime = this.closingTime.add(time.duration.seconds(1));
     this.token = await SimpleToken.new();
   });
 
   it('reverts if the opening time is in the past', async function () {
-    await shouldFail.reverting(TimedCrowdsaleImpl.new(
-      (await time.latest()) - time.duration.days(1), this.closingTime, rate, wallet, this.token.address
-    ));
+    await expectRevert(TimedCrowdsaleImpl.new(
+      (await time.latest()).sub(time.duration.days(1)), this.closingTime, rate, wallet, this.token.address
+    ), 'TimedCrowdsale: opening time is before current time');
   });
 
   it('reverts if the closing time is before the opening time', async function () {
-    await shouldFail.reverting(TimedCrowdsaleImpl.new(
-      this.openingTime, this.openingTime - time.duration.seconds(1), rate, wallet, this.token.address
-    ));
+    await expectRevert(TimedCrowdsaleImpl.new(
+      this.openingTime, this.openingTime.sub(time.duration.seconds(1)), rate, wallet, this.token.address
+    ), 'TimedCrowdsale: opening time is not before closing time');
   });
 
   it('reverts if the closing time equals the opening time', async function () {
-    await shouldFail.reverting(TimedCrowdsaleImpl.new(
+    await expectRevert(TimedCrowdsaleImpl.new(
       this.openingTime, this.openingTime, rate, wallet, this.token.address
-    ));
+    ), 'TimedCrowdsale: opening time is not before closing time');
   });
 
   context('with crowdsale', function () {
@@ -51,30 +49,97 @@ contract('TimedCrowdsale', function ([_, investor, wallet, purchaser]) {
     });
 
     it('should be ended only after end', async function () {
-      (await this.crowdsale.hasClosed()).should.equal(false);
+      expect(await this.crowdsale.hasClosed()).to.equal(false);
       await time.increaseTo(this.afterClosingTime);
-      (await this.crowdsale.isOpen()).should.equal(false);
-      (await this.crowdsale.hasClosed()).should.equal(true);
+      expect(await this.crowdsale.isOpen()).to.equal(false);
+      expect(await this.crowdsale.hasClosed()).to.equal(true);
     });
 
     describe('accepting payments', function () {
       it('should reject payments before start', async function () {
-        (await this.crowdsale.isOpen()).should.equal(false);
-        await shouldFail.reverting(this.crowdsale.send(value));
-        await shouldFail.reverting(this.crowdsale.buyTokens(investor, { from: purchaser, value: value }));
+        expect(await this.crowdsale.isOpen()).to.equal(false);
+        await expectRevert(this.crowdsale.send(value), 'TimedCrowdsale: not open');
+        await expectRevert(this.crowdsale.buyTokens(investor, { from: purchaser, value: value }),
+          'TimedCrowdsale: not open'
+        );
       });
 
       it('should accept payments after start', async function () {
         await time.increaseTo(this.openingTime);
-        (await this.crowdsale.isOpen()).should.equal(true);
+        expect(await this.crowdsale.isOpen()).to.equal(true);
         await this.crowdsale.send(value);
         await this.crowdsale.buyTokens(investor, { value: value, from: purchaser });
       });
 
       it('should reject payments after end', async function () {
         await time.increaseTo(this.afterClosingTime);
-        await shouldFail.reverting(this.crowdsale.send(value));
-        await shouldFail.reverting(this.crowdsale.buyTokens(investor, { value: value, from: purchaser }));
+        await expectRevert(this.crowdsale.send(value), 'TimedCrowdsale: not open');
+        await expectRevert(this.crowdsale.buyTokens(investor, { value: value, from: purchaser }),
+          'TimedCrowdsale: not open'
+        );
+      });
+    });
+
+    describe('extending closing time', function () {
+      it('should not reduce duration', async function () {
+        // Same date
+        await expectRevert(this.crowdsale.extendTime(this.closingTime),
+          'TimedCrowdsale: new closing time is before current closing time'
+        );
+
+        // Prescending date
+        const newClosingTime = this.closingTime.sub(time.duration.seconds(1));
+        await expectRevert(this.crowdsale.extendTime(newClosingTime),
+          'TimedCrowdsale: new closing time is before current closing time'
+        );
+      });
+
+      context('before crowdsale start', function () {
+        beforeEach(async function () {
+          expect(await this.crowdsale.isOpen()).to.equal(false);
+          await expectRevert(this.crowdsale.send(value), 'TimedCrowdsale: not open');
+        });
+
+        it('it extends end time', async function () {
+          const newClosingTime = this.closingTime.add(time.duration.days(1));
+          const { logs } = await this.crowdsale.extendTime(newClosingTime);
+          expectEvent.inLogs(logs, 'TimedCrowdsaleExtended', {
+            prevClosingTime: this.closingTime,
+            newClosingTime: newClosingTime,
+          });
+          expect(await this.crowdsale.closingTime()).to.be.bignumber.equal(newClosingTime);
+        });
+      });
+
+      context('after crowdsale start', function () {
+        beforeEach(async function () {
+          await time.increaseTo(this.openingTime);
+          expect(await this.crowdsale.isOpen()).to.equal(true);
+          await this.crowdsale.send(value);
+        });
+
+        it('it extends end time', async function () {
+          const newClosingTime = this.closingTime.add(time.duration.days(1));
+          const { logs } = await this.crowdsale.extendTime(newClosingTime);
+          expectEvent.inLogs(logs, 'TimedCrowdsaleExtended', {
+            prevClosingTime: this.closingTime,
+            newClosingTime: newClosingTime,
+          });
+          expect(await this.crowdsale.closingTime()).to.be.bignumber.equal(newClosingTime);
+        });
+      });
+
+      context('after crowdsale end', function () {
+        beforeEach(async function () {
+          await time.increaseTo(this.afterClosingTime);
+        });
+
+        it('it reverts', async function () {
+          const newClosingTime = await time.latest();
+          await expectRevert(this.crowdsale.extendTime(newClosingTime),
+            'TimedCrowdsale: already closed'
+          );
+        });
       });
     });
   });

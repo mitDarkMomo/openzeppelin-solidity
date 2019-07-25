@@ -40,7 +40,7 @@ Once the CI run for the new tag is green, publish on npm under the `next` tag. Y
 npm publish --tag next
 ```
 
-Publish the release notes on GitHub and ask our community manager to announce the release candidate on at least Slack and Twitter.
+Publish the release notes on GitHub and the forum, and ask our community manager to announce the release candidate on at least Twitter.
 
 ## Creating the final release
 
@@ -51,12 +51,15 @@ git checkout release-vX.Y.Z
 git pull upstream
 ```
 
+Before starting the release process, make one final commit to CHANGELOG.md, including the date of the release.
+
 Change the version string in `package.json`, `package-lock.json` and `ethpm.json` removing the "-rc.R" suffix. Commit these changes and tag the commit as `vX.Y.Z`.
 
 ```
 git add package.json package-lock.json ethpm.json
 git commit -m "Release vX.Y.Z"
 git tag -a vX.Y.Z
+git push upstream release-vX.Y.Z
 git push upstream vX.Y.Z
 ```
 

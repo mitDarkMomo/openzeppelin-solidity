@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.0;
 
 import "../Crowdsale.sol";
 import "../../token/ERC20/IERC20.sol";
@@ -18,10 +18,10 @@ contract AllowanceCrowdsale is Crowdsale {
 
     /**
      * @dev Constructor, takes token wallet address.
-     * @param tokenWallet Address holding the tokens, which has approved allowance to the crowdsale
+     * @param tokenWallet Address holding the tokens, which has approved allowance to the crowdsale.
      */
-    constructor (address tokenWallet) internal {
-        require(tokenWallet != address(0));
+    constructor (address tokenWallet) public {
+        require(tokenWallet != address(0), "AllowanceCrowdsale: token wallet is the zero address");
         _tokenWallet = tokenWallet;
     }
 
@@ -37,7 +37,7 @@ contract AllowanceCrowdsale is Crowdsale {
      * @return Amount of tokens left in the allowance
      */
     function remainingTokens() public view returns (uint256) {
-        return Math.min(token().balanceOf(_tokenWallet), token().allowance(_tokenWallet, this));
+        return Math.min(token().balanceOf(_tokenWallet), token().allowance(_tokenWallet, address(this)));
     }
 
     /**

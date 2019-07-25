@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.0;
 
 import "../../math/SafeMath.sol";
 import "../Crowdsale.sol";
@@ -14,10 +14,17 @@ contract TimedCrowdsale is Crowdsale {
     uint256 private _closingTime;
 
     /**
+     * Event for crowdsale extending
+     * @param newClosingTime new closing time
+     * @param prevClosingTime old closing time
+     */
+    event TimedCrowdsaleExtended(uint256 prevClosingTime, uint256 newClosingTime);
+
+    /**
      * @dev Reverts if not in crowdsale time range.
      */
     modifier onlyWhileOpen {
-        require(isOpen());
+        require(isOpen(), "TimedCrowdsale: not open");
         _;
     }
 
@@ -26,10 +33,11 @@ contract TimedCrowdsale is Crowdsale {
      * @param openingTime Crowdsale opening time
      * @param closingTime Crowdsale closing time
      */
-    constructor (uint256 openingTime, uint256 closingTime) internal {
-        // solium-disable-next-line security/no-block-members
-        require(openingTime >= block.timestamp);
-        require(closingTime > openingTime);
+    constructor (uint256 openingTime, uint256 closingTime) public {
+        // solhint-disable-next-line not-rely-on-time
+        require(openingTime >= block.timestamp, "TimedCrowdsale: opening time is before current time");
+        // solhint-disable-next-line max-line-length
+        require(closingTime > openingTime, "TimedCrowdsale: opening time is not before closing time");
 
         _openingTime = openingTime;
         _closingTime = closingTime;
@@ -53,7 +61,7 @@ contract TimedCrowdsale is Crowdsale {
      * @return true if the crowdsale is open, false otherwise.
      */
     function isOpen() public view returns (bool) {
-        // solium-disable-next-line security/no-block-members
+        // solhint-disable-next-line not-rely-on-time
         return block.timestamp >= _openingTime && block.timestamp <= _closingTime;
     }
 
@@ -62,16 +70,29 @@ contract TimedCrowdsale is Crowdsale {
      * @return Whether crowdsale period has elapsed
      */
     function hasClosed() public view returns (bool) {
-        // solium-disable-next-line security/no-block-members
+        // solhint-disable-next-line not-rely-on-time
         return block.timestamp > _closingTime;
     }
 
     /**
-     * @dev Extend parent behavior requiring to be within contributing period
+     * @dev Extend parent behavior requiring to be within contributing period.
      * @param beneficiary Token purchaser
      * @param weiAmount Amount of wei contributed
      */
     function _preValidatePurchase(address beneficiary, uint256 weiAmount) internal onlyWhileOpen view {
         super._preValidatePurchase(beneficiary, weiAmount);
+    }
+
+    /**
+     * @dev Extend crowdsale.
+     * @param newClosingTime Crowdsale closing time
+     */
+    function _extendTime(uint256 newClosingTime) internal {
+        require(!hasClosed(), "TimedCrowdsale: already closed");
+        // solhint-disable-next-line max-line-length
+        require(newClosingTime > _closingTime, "TimedCrowdsale: new closing time is before current closing time");
+
+        emit TimedCrowdsaleExtended(_closingTime, newClosingTime);
+        _closingTime = newClosingTime;
     }
 }

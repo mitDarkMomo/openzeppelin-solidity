@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.0;
 
 import "../validation/TimedCrowdsale.sol";
 import "../../math/SafeMath.sol";
@@ -20,19 +20,20 @@ contract IncreasingPriceCrowdsale is TimedCrowdsale {
      * @param initialRate Number of tokens a buyer gets per wei at the start of the crowdsale
      * @param finalRate Number of tokens a buyer gets per wei at the end of the crowdsale
      */
-    constructor (uint256 initialRate, uint256 finalRate) internal {
-        require(finalRate > 0);
-        require(initialRate > finalRate);
+    constructor (uint256 initialRate, uint256 finalRate) public {
+        require(finalRate > 0, "IncreasingPriceCrowdsale: final rate is 0");
+        // solhint-disable-next-line max-line-length
+        require(initialRate > finalRate, "IncreasingPriceCrowdsale: initial rate is not greater than final rate");
         _initialRate = initialRate;
         _finalRate = finalRate;
     }
 
     /**
-     * The base rate function is overridden to revert, since this crowdsale doens't use it, and
+     * The base rate function is overridden to revert, since this crowdsale doesn't use it, and
      * all calls to it are a mistake.
      */
     function rate() public view returns (uint256) {
-        revert();
+        revert("IncreasingPriceCrowdsale: rate() called");
     }
 
     /**
@@ -59,7 +60,7 @@ contract IncreasingPriceCrowdsale is TimedCrowdsale {
             return 0;
         }
 
-        // solium-disable-next-line security/no-block-members
+        // solhint-disable-next-line not-rely-on-time
         uint256 elapsedTime = block.timestamp.sub(openingTime());
         uint256 timeRange = closingTime().sub(openingTime());
         uint256 rateRange = _initialRate.sub(_finalRate);

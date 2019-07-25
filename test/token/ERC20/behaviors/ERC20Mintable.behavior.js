@@ -1,19 +1,18 @@
-const shouldFail = require('../../../helpers/shouldFail');
-const expectEvent = require('../../../helpers/expectEvent');
-const { ZERO_ADDRESS } = require('../../../helpers/constants');
+const { BN, constants, expectEvent, expectRevert } = require('openzeppelin-test-helpers');
+const { ZERO_ADDRESS } = constants;
 
-require('../../../helpers/setup');
+const { expect } = require('chai');
 
-function shouldBehaveLikeERC20Mintable (minter, [anyone]) {
+function shouldBehaveLikeERC20Mintable (minter, [other]) {
   describe('as a mintable token', function () {
     describe('mint', function () {
-      const amount = 100;
+      const amount = new BN(100);
 
       context('when the sender has minting permission', function () {
         const from = minter;
 
         context('for a zero amount', function () {
-          shouldMint(0);
+          shouldMint(new BN(0));
         });
 
         context('for a non-zero amount', function () {
@@ -22,17 +21,17 @@ function shouldBehaveLikeERC20Mintable (minter, [anyone]) {
 
         function shouldMint (amount) {
           beforeEach(async function () {
-            ({ logs: this.logs } = await this.token.mint(anyone, amount, { from }));
+            ({ logs: this.logs } = await this.token.mint(other, amount, { from }));
           });
 
           it('mints the requested amount', async function () {
-            (await this.token.balanceOf(anyone)).should.be.bignumber.equal(amount);
+            expect(await this.token.balanceOf(other)).to.be.bignumber.equal(amount);
           });
 
           it('emits a mint and a transfer event', async function () {
             expectEvent.inLogs(this.logs, 'Transfer', {
               from: ZERO_ADDRESS,
-              to: anyone,
+              to: other,
               value: amount,
             });
           });
@@ -40,10 +39,12 @@ function shouldBehaveLikeERC20Mintable (minter, [anyone]) {
       });
 
       context('when the sender doesn\'t have minting permission', function () {
-        const from = anyone;
+        const from = other;
 
         it('reverts', async function () {
-          await shouldFail.reverting(this.token.mint(anyone, amount, { from }));
+          await expectRevert(this.token.mint(other, amount, { from }),
+            'MinterRole: caller does not have the Minter role'
+          );
         });
       });
     });

@@ -1,18 +1,17 @@
-const shouldFail = require('../../../helpers/shouldFail');
-const expectEvent = require('../../../helpers/expectEvent');
-const { ZERO_ADDRESS } = require('../../../helpers/constants');
+const { BN, constants, expectEvent, expectRevert } = require('openzeppelin-test-helpers');
+const { ZERO_ADDRESS } = constants;
 
-require('../../../helpers/setup');
+const { expect } = require('chai');
 
 function shouldBehaveLikeERC20Burnable (owner, initialBalance, [burner]) {
   describe('burn', function () {
     describe('when the given amount is not greater than balance of the sender', function () {
       context('for a zero amount', function () {
-        shouldBurn(0);
+        shouldBurn(new BN(0));
       });
 
       context('for a non-zero amount', function () {
-        shouldBurn(100);
+        shouldBurn(new BN(100));
       });
 
       function shouldBurn (amount) {
@@ -21,7 +20,7 @@ function shouldBehaveLikeERC20Burnable (owner, initialBalance, [burner]) {
         });
 
         it('burns the requested amount', async function () {
-          (await this.token.balanceOf(owner)).should.be.bignumber.equal(initialBalance - amount);
+          expect(await this.token.balanceOf(owner)).to.be.bignumber.equal(initialBalance.sub(amount));
         });
 
         it('emits a transfer event', async function () {
@@ -35,10 +34,12 @@ function shouldBehaveLikeERC20Burnable (owner, initialBalance, [burner]) {
     });
 
     describe('when the given amount is greater than the balance of the sender', function () {
-      const amount = initialBalance + 1;
+      const amount = initialBalance.addn(1);
 
       it('reverts', async function () {
-        await shouldFail.reverting(this.token.burn(amount, { from: owner }));
+        await expectRevert(this.token.burn(amount, { from: owner }),
+          'SafeMath: subtraction overflow'
+        );
       });
     });
   });
@@ -46,15 +47,15 @@ function shouldBehaveLikeERC20Burnable (owner, initialBalance, [burner]) {
   describe('burnFrom', function () {
     describe('on success', function () {
       context('for a zero amount', function () {
-        shouldBurnFrom(0);
+        shouldBurnFrom(new BN(0));
       });
 
       context('for a non-zero amount', function () {
-        shouldBurnFrom(100);
+        shouldBurnFrom(new BN(100));
       });
 
       function shouldBurnFrom (amount) {
-        const originalAllowance = amount * 3;
+        const originalAllowance = amount.muln(3);
 
         beforeEach(async function () {
           await this.token.approve(burner, originalAllowance, { from: owner });
@@ -63,11 +64,11 @@ function shouldBehaveLikeERC20Burnable (owner, initialBalance, [burner]) {
         });
 
         it('burns the requested amount', async function () {
-          (await this.token.balanceOf(owner)).should.be.bignumber.equal(initialBalance - amount);
+          expect(await this.token.balanceOf(owner)).to.be.bignumber.equal(initialBalance.sub(amount));
         });
 
         it('decrements allowance', async function () {
-          (await this.token.allowance(owner, burner)).should.be.bignumber.equal(originalAllowance - amount);
+          expect(await this.token.allowance(owner, burner)).to.be.bignumber.equal(originalAllowance.sub(amount));
         });
 
         it('emits a transfer event', async function () {
@@ -81,18 +82,24 @@ function shouldBehaveLikeERC20Burnable (owner, initialBalance, [burner]) {
     });
 
     describe('when the given amount is greater than the balance of the sender', function () {
-      const amount = initialBalance + 1;
+      const amount = initialBalance.addn(1);
+
       it('reverts', async function () {
         await this.token.approve(burner, amount, { from: owner });
-        await shouldFail.reverting(this.token.burnFrom(owner, amount, { from: burner }));
+        await expectRevert(this.token.burnFrom(owner, amount, { from: burner }),
+          'SafeMath: subtraction overflow'
+        );
       });
     });
 
     describe('when the given amount is greater than the allowance', function () {
-      const amount = 100;
+      const allowance = new BN(100);
+
       it('reverts', async function () {
-        await this.token.approve(burner, amount - 1, { from: owner });
-        await shouldFail.reverting(this.token.burnFrom(owner, amount, { from: burner }));
+        await this.token.approve(burner, allowance, { from: owner });
+        await expectRevert(this.token.burnFrom(owner, allowance.addn(1), { from: burner }),
+          'SafeMath: subtraction overflow'
+        );
       });
     });
   });

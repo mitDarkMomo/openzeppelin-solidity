@@ -1,12 +1,11 @@
-const shouldFail = require('../../helpers/shouldFail');
-const send = require('../../helpers/send');
-const { ZERO_ADDRESS } = require('../../helpers/constants');
+const { BN, constants, expectRevert } = require('openzeppelin-test-helpers');
+const { ZERO_ADDRESS } = constants;
 
-require('../../helpers/setup');
+const { expect } = require('chai');
 
 function shouldBehaveLikeERC721PausedToken (owner, [recipient, operator]) {
-  const firstTokenId = 1;
-  const mintedTokens = 1;
+  const firstTokenId = new BN(1);
+  const mintedTokens = new BN(1);
   const mockData = '0x42';
 
   describe('like a paused ERC721', function () {
@@ -15,65 +14,67 @@ function shouldBehaveLikeERC721PausedToken (owner, [recipient, operator]) {
     });
 
     it('reverts when trying to approve', async function () {
-      await shouldFail.reverting(this.token.approve(recipient, firstTokenId, { from: owner }));
+      await expectRevert(
+        this.token.approve(recipient, firstTokenId, { from: owner }), 'Pausable: paused'
+      );
     });
 
     it('reverts when trying to setApprovalForAll', async function () {
-      await shouldFail.reverting(this.token.setApprovalForAll(operator, true, { from: owner }));
+      await expectRevert(
+        this.token.setApprovalForAll(operator, true, { from: owner }), 'Pausable: paused'
+      );
     });
 
     it('reverts when trying to transferFrom', async function () {
-      await shouldFail.reverting(this.token.transferFrom(owner, recipient, firstTokenId, { from: owner }));
+      await expectRevert(
+        this.token.transferFrom(owner, recipient, firstTokenId, { from: owner }), 'Pausable: paused'
+      );
     });
 
     it('reverts when trying to safeTransferFrom', async function () {
-      await shouldFail.reverting(this.token.safeTransferFrom(owner, recipient, firstTokenId, { from: owner }));
+      await expectRevert(
+        this.token.safeTransferFrom(owner, recipient, firstTokenId, { from: owner }), 'Pausable: paused'
+      );
     });
 
     it('reverts when trying to safeTransferFrom with data', async function () {
-      await shouldFail.reverting(
-        send.transaction(
-          this.token,
-          'safeTransferFrom',
-          'address,address,uint256,bytes',
-          [owner, recipient, firstTokenId, mockData],
-          { from: owner }
-        )
+      await expectRevert(
+        this.token.methods['safeTransferFrom(address,address,uint256,bytes)'](
+          owner, recipient, firstTokenId, mockData, { from: owner }
+        ), 'Pausable: paused'
       );
     });
 
     describe('getApproved', function () {
       it('returns approved address', async function () {
         const approvedAccount = await this.token.getApproved(firstTokenId);
-        approvedAccount.should.be.equal(ZERO_ADDRESS);
+        expect(approvedAccount).to.equal(ZERO_ADDRESS);
       });
     });
 
     describe('balanceOf', function () {
       it('returns the amount of tokens owned by the given address', async function () {
         const balance = await this.token.balanceOf(owner);
-        balance.should.be.bignumber.equal(mintedTokens);
+        expect(balance).to.be.bignumber.equal(mintedTokens);
       });
     });
 
     describe('ownerOf', function () {
       it('returns the amount of tokens owned by the given address', async function () {
         const ownerOfToken = await this.token.ownerOf(firstTokenId);
-        ownerOfToken.should.be.equal(owner);
+        expect(ownerOfToken).to.equal(owner);
       });
     });
 
     describe('exists', function () {
-      it('should return token existance', async function () {
-        const result = await this.token.exists(firstTokenId);
-        result.should.eq(true);
+      it('should return token existence', async function () {
+        expect(await this.token.exists(firstTokenId)).to.equal(true);
       });
     });
 
     describe('isApprovedForAll', function () {
       it('returns the approval of the operator', async function () {
-        const isApproved = await this.token.isApprovedForAll(owner, operator);
-        isApproved.should.eq(false);
+        expect(await this.token.isApprovedForAll(owner, operator)).to.equal(false);
       });
     });
   });

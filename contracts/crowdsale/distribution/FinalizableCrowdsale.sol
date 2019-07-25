@@ -1,11 +1,11 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.0;
 
 import "../../math/SafeMath.sol";
 import "../validation/TimedCrowdsale.sol";
 
 /**
  * @title FinalizableCrowdsale
- * @dev Extension of Crowdsale with a one-off finalization action, where one
+ * @dev Extension of TimedCrowdsale with a one-off finalization action, where one
  * can do extra work after finishing.
  */
 contract FinalizableCrowdsale is TimedCrowdsale {
@@ -31,8 +31,8 @@ contract FinalizableCrowdsale is TimedCrowdsale {
      * work. Calls the contract's finalization function.
      */
     function finalize() public {
-        require(!_finalized);
-        require(hasClosed());
+        require(!_finalized, "FinalizableCrowdsale: already finalized");
+        require(hasClosed(), "FinalizableCrowdsale: not closed");
 
         _finalized = true;
 
@@ -45,5 +45,7 @@ contract FinalizableCrowdsale is TimedCrowdsale {
      * should call super._finalization() to ensure the chain of finalization is
      * executed entirely.
      */
-    function _finalization() internal {}
+    function _finalization() internal {
+        // solhint-disable-previous-line no-empty-blocks
+    }
 }
